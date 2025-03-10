@@ -20,18 +20,15 @@ def load_data():
     # Konversi ke datetime
     orders_df['order_purchase_timestamp'] = pd.to_datetime(orders_df['order_purchase_timestamp'])
     
-    return orders_df, order_payments_df, customers_df, order_items_df, products_df, geolocation_df
+    return orders_df, order_payments_df, customers_df, order_items_df, products_df, geolocation_df, sellers_df
 
 # Load data
-orders_df, order_payments_df, customers_df, order_items_df, products_df, geolocation_df = load_data()
+orders_df, order_payments_df, customers_df, order_items_df, products_df, geolocation_df, sellers_df = load_data()
 
-# ---- WELCOME MESSAGE ----
-st.title('E-commerce Analysis Dashboard 📊')
-st.write("Selamat datang di Dashboard E-commerce! Di sini, Anda dapat mengeksplorasi berbagai aspek dari data e-commerce, mulai dari tren penjualan hingga distribusi pelanggan. Nikmati analisis yang interaktif dan temukan wawasan menarik! 🚀")
 
 # ---- SIDEBAR ----
 st.sidebar.title('E-commerce Dashboard')
-st.sidebar.image("Images.jpg", use_column_width=True)
+st.sidebar.image("Images.jpg", use_container_width=True)
 
 # Profil Developer
 st.sidebar.markdown("### Developer")
@@ -76,9 +73,12 @@ orders_filtered = orders_df[
 if selected_category != 'All':
     order_items_filtered = order_items_df.merge(products_df, on='product_id')
     order_items_filtered = order_items_filtered[order_items_filtered['product_category_name'] == selected_category]
+
+    # Filter orders yang hanya memiliki produk yang dipilih
+    orders_filtered = orders_filtered[orders_filtered['order_id'].isin(order_items_filtered['order_id'])]
 else:
     order_items_filtered = order_items_df.copy()
-
+    
 if selected_payment != 'All':
     order_payments_filtered = order_payments_df[order_payments_df['payment_type'] == selected_payment]
 else:
@@ -89,9 +89,37 @@ if selected_location != 'All':
 else:
     geolocation_filtered = geolocation_df.copy()
 
+# Filter produk berdasarkan kategori yang dipilih
+if selected_category != 'All':
+    products_filtered = products_df[products_df['product_category_name'] == selected_category]
+else:
+    products_filtered = products_df.copy()
 
-# ---- VISUALISASI ----
+# Filter sellers berdasarkan produk yang tersedia
+if selected_category != 'All':
+    sellers_filtered = sellers_df[sellers_df['seller_id'].isin(order_items_df[order_items_df['product_id'].isin(products_filtered['product_id'])]['seller_id'])]
+else:
+    sellers_filtered = sellers_df.copy()
+
+# ---- WELCOME MESSAGE ----
 st.title('E-commerce Analysis Dashboard 📊')
+st.write("Selamat datang di Dashboard E-commerce! Di sini, Anda dapat mengeksplorasi berbagai aspek dari data e-commerce, mulai dari tren penjualan hingga distribusi pelanggan. Nikmati analisis yang interaktif dan temukan wawasan menarik! 🚀")
+st.write(f"Data diperbarui: Menampilkan Pemesanan dari **{start_date.date()}** hingga **{end_date.date()}**")
+
+# ---- METRICS ----
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Total Orders", f"{len(orders_filtered):,}")
+
+with col2:
+    st.metric("Total Products", f"{len(products_filtered):,}")
+
+with col3:
+    st.metric("Total Sellers", f"{len(sellers_filtered):,}")
+
+with col4:
+    st.metric("Total Payments", f"${order_payments_filtered['payment_value'].sum():,.2f}")
 
 # ---- TOP SELLING PRODUCTS ----
 st.header('1. Produk yang Paling Banyak Dibeli')
@@ -110,7 +138,6 @@ def visual_product():
     st.write("🔍 **Insight:** Produk dengan jumlah pembelian terbanyak menunjukkan kategori atau brand yang paling diminati pelanggan. Hal ini dapat menjadi acuan strategi pemasaran dan pengelolaan stok.")
 
 visual_product()
-
 
 # ---- CUSTOMER GEOGRAPHIC DISTRIBUTION ----
 st.header('2. Distribusi Pelanggan Berdasarkan Lokasi Geografis')
